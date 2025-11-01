@@ -22,6 +22,16 @@
                 grayscale: 0,
                 sepia: 0
             },
+            textAnnotations: [],
+            textSettings: {
+                font: 'Arial',
+                size: 32,
+                color: '#ffffff',
+                alignment: 'left',
+                bold: false,
+                italic: false
+            },
+            watermark: null,
             gradient: {
                 type: 'linear',
                 angle: 135,
@@ -53,6 +63,9 @@
             const stateCopy = JSON.parse(JSON.stringify({
                 imageTransform: state.imageTransform,
                 imageFilters: state.imageFilters,
+                textAnnotations: state.textAnnotations,
+                textSettings: state.textSettings,
+                watermark: state.watermark,
                 gradient: state.gradient,
                 padding: state.padding,
                 scale: state.scale,
@@ -79,6 +92,9 @@
             const currentState = JSON.parse(JSON.stringify({
                 imageTransform: state.imageTransform,
                 imageFilters: state.imageFilters,
+                textAnnotations: state.textAnnotations,
+                textSettings: state.textSettings,
+                watermark: state.watermark,
                 gradient: state.gradient,
                 padding: state.padding,
                 scale: state.scale,
@@ -106,6 +122,9 @@
             const currentState = JSON.parse(JSON.stringify({
                 imageTransform: state.imageTransform,
                 imageFilters: state.imageFilters,
+                textAnnotations: state.textAnnotations,
+                textSettings: state.textSettings,
+                watermark: state.watermark,
                 gradient: state.gradient,
                 padding: state.padding,
                 scale: state.scale,
@@ -290,6 +309,19 @@
             sepia: document.getElementById('sepia'),
             sepiaValue: document.getElementById('sepia-value'),
 
+            // Text annotation controls
+            textContent: document.getElementById('text-content'),
+            addTextBtn: document.getElementById('add-text-btn'),
+            textFont: document.getElementById('text-font'),
+            textSize: document.getElementById('text-size'),
+            textSizeValue: document.getElementById('text-size-value'),
+            textColor: document.getElementById('text-color'),
+            textColorText: document.getElementById('text-color-text'),
+            textBold: document.getElementById('text-bold'),
+            textItalic: document.getElementById('text-italic'),
+            watermarkText: document.getElementById('watermark-text'),
+            addWatermarkBtn: document.getElementById('add-watermark-btn'),
+
             // Gradient controls
             gradientType: document.getElementById('gradient-type'),
             gradientAngle: document.getElementById('gradient-angle'),
@@ -419,6 +451,88 @@
                 state.imageFilters.sepia = parseInt(e.target.value);
                 elements.sepiaValue.textContent = `${e.target.value}%`;
                 render();
+            });
+
+            // Text annotation controls
+            elements.textFont.addEventListener('change', (e) => {
+                state.textSettings.font = e.target.value;
+            });
+
+            elements.textSize.addEventListener('input', (e) => {
+                state.textSettings.size = parseInt(e.target.value);
+                elements.textSizeValue.textContent = `${e.target.value}px`;
+            });
+
+            elements.textColor.addEventListener('input', (e) => {
+                state.textSettings.color = e.target.value;
+                elements.textColorText.value = e.target.value;
+            });
+
+            elements.textColorText.addEventListener('input', (e) => {
+                if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                    state.textSettings.color = e.target.value;
+                    elements.textColor.value = e.target.value;
+                }
+            });
+
+            elements.textBold.addEventListener('change', (e) => {
+                state.textSettings.bold = e.target.checked;
+            });
+
+            elements.textItalic.addEventListener('change', (e) => {
+                state.textSettings.italic = e.target.checked;
+            });
+
+            // Text alignment buttons
+            document.querySelectorAll('.text-align-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.text-align-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    state.textSettings.alignment = btn.dataset.align;
+                });
+            });
+
+            elements.addTextBtn.addEventListener('click', () => {
+                const text = elements.textContent.value.trim();
+                if (!text) {
+                    showNotification('Please enter some text', 'error');
+                    return;
+                }
+
+                saveStateToHistory();
+                state.textAnnotations.push({
+                    text: text,
+                    x: state.canvas.width / 2,
+                    y: state.canvas.height / 2,
+                    font: state.textSettings.font,
+                    size: state.textSettings.size,
+                    color: state.textSettings.color,
+                    alignment: state.textSettings.alignment,
+                    bold: state.textSettings.bold,
+                    italic: state.textSettings.italic
+                });
+                elements.textContent.value = '';
+                render();
+                showNotification('Text added!', 'success');
+            });
+
+            elements.addWatermarkBtn.addEventListener('click', () => {
+                const text = elements.watermarkText.value.trim();
+                if (!text) {
+                    showNotification('Please enter watermark text', 'error');
+                    return;
+                }
+
+                saveStateToHistory();
+                state.watermark = {
+                    text: text,
+                    font: 'Arial',
+                    size: 24,
+                    color: 'rgba(255, 255, 255, 0.3)',
+                    position: 'bottom-right'
+                };
+                render();
+                showNotification('Watermark added!', 'success');
             });
 
             // Drag and Drop
@@ -919,6 +1033,81 @@
             if (state.showBorder) {
                 drawBorder(x, y, imgWidth, imgHeight);
             }
+
+            // Draw text annotations
+            state.textAnnotations.forEach(textObj => {
+                drawText(textObj);
+            });
+
+            // Draw watermark
+            if (state.watermark) {
+                drawWatermark(state.watermark);
+            }
+        }
+
+        // Draw text annotation
+        function drawText(textObj) {
+            ctx.save();
+
+            // Set font properties
+            let fontStyle = '';
+            if (textObj.italic) fontStyle += 'italic ';
+            if (textObj.bold) fontStyle += 'bold ';
+            ctx.font = `${fontStyle}${textObj.size}px ${textObj.font}`;
+            ctx.fillStyle = textObj.color;
+            ctx.textAlign = textObj.alignment;
+            ctx.textBaseline = 'middle';
+
+            // Add slight shadow for better readability
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.fillText(textObj.text, textObj.x, textObj.y);
+
+            ctx.restore();
+        }
+
+        // Draw watermark
+        function drawWatermark(watermark) {
+            ctx.save();
+
+            ctx.font = `${watermark.size}px ${watermark.font}`;
+            ctx.fillStyle = watermark.color;
+
+            let x, y;
+            switch (watermark.position) {
+                case 'bottom-right':
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'bottom';
+                    x = elements.canvas.width - 20;
+                    y = elements.canvas.height - 20;
+                    break;
+                case 'bottom-left':
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'bottom';
+                    x = 20;
+                    y = elements.canvas.height - 20;
+                    break;
+                case 'top-right':
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'top';
+                    x = elements.canvas.width - 20;
+                    y = 20;
+                    break;
+                case 'top-left':
+                default:
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    x = 20;
+                    y = 20;
+                    break;
+            }
+
+            ctx.fillText(watermark.text, x, y);
+
+            ctx.restore();
         }
 
         function drawGradient() {
@@ -1050,6 +1239,16 @@
                 grayscale: 0,
                 sepia: 0
             };
+            state.textAnnotations = [];
+            state.textSettings = {
+                font: 'Arial',
+                size: 32,
+                color: '#ffffff',
+                alignment: 'left',
+                bold: false,
+                italic: false
+            };
+            state.watermark = null;
             state.gradient = {
                 type: 'linear',
                 angle: 135,
