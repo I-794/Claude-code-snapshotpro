@@ -32,6 +32,13 @@
                 x: 0.5,
                 y: 0.5
             },
+            windowOverlay: {
+                enabled: false,
+                style: 'macos',
+                title: 'Screenshot',
+                height: 40,
+                showControls: true
+            },
             gradient: {
                 type: 'linear',
                 angle: 135,
@@ -63,6 +70,8 @@
             const stateCopy = JSON.parse(JSON.stringify({
                 imageTransform: state.imageTransform,
                 imageFilters: state.imageFilters,
+                textOverlay: state.textOverlay,
+                windowOverlay: state.windowOverlay,
                 gradient: state.gradient,
                 padding: state.padding,
                 scale: state.scale,
@@ -89,6 +98,8 @@
             const currentState = JSON.parse(JSON.stringify({
                 imageTransform: state.imageTransform,
                 imageFilters: state.imageFilters,
+                textOverlay: state.textOverlay,
+                windowOverlay: state.windowOverlay,
                 gradient: state.gradient,
                 padding: state.padding,
                 scale: state.scale,
@@ -116,6 +127,8 @@
             const currentState = JSON.parse(JSON.stringify({
                 imageTransform: state.imageTransform,
                 imageFilters: state.imageFilters,
+                textOverlay: state.textOverlay,
+                windowOverlay: state.windowOverlay,
                 gradient: state.gradient,
                 padding: state.padding,
                 scale: state.scale,
@@ -198,6 +211,26 @@
 
             elements.canvasWidth.value = state.canvas.width;
             elements.canvasHeight.value = state.canvas.height;
+
+            // Text overlay
+            elements.textControls.style.display = state.textOverlay.enabled ? 'block' : 'none';
+            elements.textContent.value = state.textOverlay.content;
+            elements.textSize.value = state.textOverlay.size;
+            elements.textSizeValue.textContent = state.textOverlay.size;
+            elements.textFont.value = state.textOverlay.font;
+            elements.textColor.value = state.textOverlay.color;
+            elements.textColorText.value = state.textOverlay.color;
+            elements.textBold.checked = state.textOverlay.bold;
+            elements.textItalic.checked = state.textOverlay.italic;
+
+            // Window overlay
+            elements.windowOverlayEnabled.checked = state.windowOverlay.enabled;
+            elements.windowOverlayControls.style.display = state.windowOverlay.enabled ? 'block' : 'none';
+            elements.windowOverlayStyle.value = state.windowOverlay.style;
+            elements.windowOverlayTitle.value = state.windowOverlay.title;
+            elements.windowOverlayHeight.value = state.windowOverlay.height;
+            elements.windowOverlayHeightValue.textContent = state.windowOverlay.height + 'px';
+            elements.windowShowControls.checked = state.windowOverlay.showControls;
 
             updateAngleIndicator();
             updateGradientPreview();
@@ -357,7 +390,16 @@
             textColorText: document.getElementById('text-color-text'),
             textBold: document.getElementById('text-bold'),
             textItalic: document.getElementById('text-italic'),
-            removeTextBtn: document.getElementById('remove-text-btn')
+            removeTextBtn: document.getElementById('remove-text-btn'),
+
+            // Window overlay controls
+            windowOverlayEnabled: document.getElementById('window-overlay-enabled'),
+            windowOverlayControls: document.getElementById('window-overlay-controls'),
+            windowOverlayStyle: document.getElementById('window-overlay-style'),
+            windowOverlayTitle: document.getElementById('window-overlay-title'),
+            windowOverlayHeight: document.getElementById('window-overlay-height'),
+            windowOverlayHeightValue: document.getElementById('window-overlay-height-value'),
+            windowShowControls: document.getElementById('window-show-controls')
         };
 
         // Initialize Canvas Context
@@ -593,6 +635,92 @@
 
             elements.canvasHeight.addEventListener('input', (e) => {
                 state.canvas.height = parseInt(e.target.value);
+                render();
+            });
+
+            // Text overlay controls
+            elements.addTextBtn.addEventListener('click', () => {
+                state.textOverlay.enabled = true;
+                elements.textControls.style.display = 'block';
+                saveStateToHistory();
+                render();
+            });
+
+            elements.textContent.addEventListener('input', (e) => {
+                state.textOverlay.content = e.target.value;
+                render();
+            });
+
+            elements.textSize.addEventListener('input', (e) => {
+                state.textOverlay.size = parseInt(e.target.value);
+                elements.textSizeValue.textContent = e.target.value;
+                render();
+            });
+
+            elements.textFont.addEventListener('change', (e) => {
+                state.textOverlay.font = e.target.value;
+                render();
+            });
+
+            elements.textColor.addEventListener('input', (e) => {
+                state.textOverlay.color = e.target.value;
+                elements.textColorText.value = e.target.value;
+                render();
+            });
+
+            elements.textColorText.addEventListener('input', (e) => {
+                if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                    state.textOverlay.color = e.target.value;
+                    elements.textColor.value = e.target.value;
+                    render();
+                }
+            });
+
+            elements.textBold.addEventListener('change', (e) => {
+                state.textOverlay.bold = e.target.checked;
+                render();
+            });
+
+            elements.textItalic.addEventListener('change', (e) => {
+                state.textOverlay.italic = e.target.checked;
+                render();
+            });
+
+            elements.removeTextBtn.addEventListener('click', () => {
+                state.textOverlay.enabled = false;
+                state.textOverlay.content = '';
+                elements.textControls.style.display = 'none';
+                elements.textContent.value = '';
+                saveStateToHistory();
+                render();
+            });
+
+            // Window overlay controls
+            elements.windowOverlayEnabled.addEventListener('change', (e) => {
+                state.windowOverlay.enabled = e.target.checked;
+                elements.windowOverlayControls.style.display = e.target.checked ? 'block' : 'none';
+                saveStateToHistory();
+                render();
+            });
+
+            elements.windowOverlayStyle.addEventListener('change', (e) => {
+                state.windowOverlay.style = e.target.value;
+                render();
+            });
+
+            elements.windowOverlayTitle.addEventListener('input', (e) => {
+                state.windowOverlay.title = e.target.value;
+                render();
+            });
+
+            elements.windowOverlayHeight.addEventListener('input', (e) => {
+                state.windowOverlay.height = parseInt(e.target.value);
+                elements.windowOverlayHeightValue.textContent = e.target.value + 'px';
+                render();
+            });
+
+            elements.windowShowControls.addEventListener('change', (e) => {
+                state.windowOverlay.showControls = e.target.checked;
                 render();
             });
 
@@ -835,8 +963,11 @@
             const scaleFactor = state.scale / 100;
             const padding = state.padding * 2;
 
+            // Account for window overlay title bar
+            const titleBarHeight = state.windowOverlay.enabled ? state.windowOverlay.height : 0;
+
             const availableWidth = canvas.width - padding;
-            const availableHeight = canvas.height - padding;
+            const availableHeight = canvas.height - padding - titleBarHeight;
 
             let imgWidth = state.image.width * scaleFactor;
             let imgHeight = state.image.height * scaleFactor;
@@ -860,7 +991,7 @@
             }
 
             const x = (canvas.width - imgWidth) / 2;
-            const y = (canvas.height - imgHeight) / 2;
+            const y = (canvas.height - imgHeight - titleBarHeight) / 2 + titleBarHeight;
 
             // Draw shadow
             if (state.shadow.opacity > 0) {
@@ -942,6 +1073,17 @@
             if (state.showBorder) {
                 drawBorder(x, y, imgWidth, imgHeight);
             }
+
+            // Draw window overlay
+            if (state.windowOverlay.enabled) {
+                // Calculate window position (title bar starts above the image)
+                const windowY = y - state.windowOverlay.height;
+                const windowHeight = imgHeight + state.windowOverlay.height;
+                drawMacOSWindow(x, windowY, imgWidth, windowHeight);
+            }
+
+            // Draw text overlay
+            drawTextOverlay();
         }
 
         function drawGradient() {
@@ -1036,6 +1178,113 @@
             ctx.stroke();
         }
 
+        // Draw Text Overlay
+        function drawTextOverlay() {
+            if (!state.textOverlay.enabled || !state.textOverlay.content) return;
+
+            ctx.save();
+
+            // Build font string
+            let fontStyle = '';
+            if (state.textOverlay.italic) fontStyle += 'italic ';
+            if (state.textOverlay.bold) fontStyle += 'bold ';
+            ctx.font = `${fontStyle}${state.textOverlay.size}px ${state.textOverlay.font}`;
+
+            // Set text properties
+            ctx.fillStyle = state.textOverlay.color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Calculate position (x and y are percentages 0-1)
+            const x = elements.canvas.width * state.textOverlay.x;
+            const y = elements.canvas.height * state.textOverlay.y;
+
+            // Draw text
+            ctx.fillText(state.textOverlay.content, x, y);
+
+            ctx.restore();
+        }
+
+        // Draw macOS Window Overlay
+        function drawMacOSWindow(x, y, width, height) {
+            const titleBarHeight = state.windowOverlay.height;
+            const radius = state.borderRadius;
+
+            ctx.save();
+
+            // Draw title bar background
+            const titleBarGradient = ctx.createLinearGradient(x, y, x, y + titleBarHeight);
+            titleBarGradient.addColorStop(0, '#ececec');
+            titleBarGradient.addColorStop(1, '#d6d6d6');
+            ctx.fillStyle = titleBarGradient;
+
+            // Title bar with top rounded corners
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + titleBarHeight);
+            ctx.lineTo(x, y + titleBarHeight);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw title bar border
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, y + titleBarHeight);
+            ctx.lineTo(x + width, y + titleBarHeight);
+            ctx.stroke();
+
+            // Draw window controls (traffic lights) if enabled
+            if (state.windowOverlay.showControls) {
+                const buttonY = y + titleBarHeight / 2;
+                const buttonSpacing = 20;
+                const buttonRadius = 6;
+                const startX = x + 12;
+
+                // Red button (close)
+                ctx.fillStyle = '#ff5f57';
+                ctx.beginPath();
+                ctx.arc(startX, buttonY, buttonRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#e04038';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+
+                // Yellow button (minimize)
+                ctx.fillStyle = '#ffbd2e';
+                ctx.beginPath();
+                ctx.arc(startX + buttonSpacing, buttonY, buttonRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#dea123';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+
+                // Green button (maximize)
+                ctx.fillStyle = '#28ca42';
+                ctx.beginPath();
+                ctx.arc(startX + buttonSpacing * 2, buttonY, buttonRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#1fa935';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+
+            // Draw window title
+            if (state.windowOverlay.title) {
+                ctx.fillStyle = '#333333';
+                ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(state.windowOverlay.title, x + width / 2, y + titleBarHeight / 2);
+            }
+
+            ctx.restore();
+        }
+
         // Export Function
         function exportImage() {
             if (!state.image) {
@@ -1072,6 +1321,24 @@
                 blur: 0,
                 grayscale: 0,
                 sepia: 0
+            };
+            state.textOverlay = {
+                enabled: false,
+                content: '',
+                size: 48,
+                font: 'Arial',
+                color: '#ffffff',
+                bold: false,
+                italic: false,
+                x: 0.5,
+                y: 0.5
+            };
+            state.windowOverlay = {
+                enabled: false,
+                style: 'macos',
+                title: 'Screenshot',
+                height: 40,
+                showControls: true
             };
             state.gradient = {
                 type: 'linear',
@@ -1150,6 +1417,26 @@
 
             elements.canvasWidth.value = 1200;
             elements.canvasHeight.value = 675;
+
+            // Text overlay
+            elements.textControls.style.display = 'none';
+            elements.textContent.value = '';
+            elements.textSize.value = 48;
+            elements.textSizeValue.textContent = '48';
+            elements.textFont.value = 'Arial';
+            elements.textColor.value = '#ffffff';
+            elements.textColorText.value = '#ffffff';
+            elements.textBold.checked = false;
+            elements.textItalic.checked = false;
+
+            // Window overlay
+            elements.windowOverlayEnabled.checked = false;
+            elements.windowOverlayControls.style.display = 'none';
+            elements.windowOverlayStyle.value = 'macos';
+            elements.windowOverlayTitle.value = 'Screenshot';
+            elements.windowOverlayHeight.value = 40;
+            elements.windowOverlayHeightValue.textContent = '40px';
+            elements.windowShowControls.checked = true;
 
             // Reset active buttons
             document.querySelectorAll('.preset-button').forEach(b => b.classList.remove('active'));

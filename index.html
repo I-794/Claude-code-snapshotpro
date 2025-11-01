@@ -312,6 +312,49 @@
                 </div>
             </div>
 
+            <!-- Window Overlay Section -->
+            <div class="sidebar-section">
+                <h3 class="section-title">Window Overlay</h3>
+
+                <div class="toggle-switch">
+                    <span class="toggle-label">Enable Window Overlay</span>
+                    <label class="switch">
+                        <input type="checkbox" id="window-overlay-enabled">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div id="window-overlay-controls" style="display: none; margin-top: 16px;">
+                    <div class="control-group">
+                        <label class="control-label">Window Style</label>
+                        <select class="control-input" id="window-overlay-style">
+                            <option value="macos">macOS</option>
+                            <option value="windows">Windows</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Window Title</label>
+                        <input type="text" class="control-input" id="window-overlay-title" placeholder="Screenshot" value="Screenshot">
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Title Bar Height</label>
+                        <div class="range-group">
+                            <input type="range" class="range-input" id="window-overlay-height" min="30" max="60" value="40">
+                            <span class="range-value" id="window-overlay-height-value">40px</span>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="window-show-controls" checked>
+                            <span>Show Window Controls</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <!-- Shadow Settings Section -->
             <div class="sidebar-section">
                 <h3 class="section-title">Shadow Settings</h3>
