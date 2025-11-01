@@ -650,6 +650,10 @@
             border-color: var(--success);
         }
 
+        .notification.error {
+            border-color: #ef4444;
+        }
+
         .notification-icon {
             font-size: 20px;
         }
@@ -792,6 +796,8 @@
                     <span>SnapShotPro</span>
                 </div>
                 <div class="header-actions">
+                    <button class="btn btn-secondary" id="undo-btn" disabled>↶ Undo</button>
+                    <button class="btn btn-secondary" id="redo-btn" disabled>↷ Redo</button>
                     <button class="btn btn-secondary" id="reset-btn">Reset</button>
                     <button class="btn btn-success" id="export-btn">Export Image</button>
                 </div>
@@ -803,12 +809,89 @@
             <!-- Image Upload Section -->
             <div class="sidebar-section">
                 <h3 class="section-title">Image Upload</h3>
-                <button class="btn btn-primary" style="width: 100%;" id="upload-btn">
-                    <span>📁</span>
-                    Choose Image
-                </button>
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <button class="btn btn-primary" style="flex: 1;" id="upload-btn">
+                        <span>📁</span>
+                        Choose Image
+                    </button>
+                    <button class="btn btn-secondary" style="flex: 1;" id="svg-btn">
+                        <span>&lt;/&gt;</span>
+                        SVG Code
+                    </button>
+                </div>
                 <p class="info-text">Or paste (Ctrl+V) / drag & drop an image</p>
                 <input type="file" id="file-input" accept="image/*">
+
+                <!-- SVG Code Input -->
+                <div id="svg-input-container" style="display: none; margin-top: 16px;">
+                    <label class="control-label">Paste SVG Code</label>
+                    <textarea class="control-input" id="svg-code-input" placeholder="<svg>...</svg>" style="min-height: 120px; font-family: monospace; font-size: 12px;"></textarea>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" id="render-svg-btn">Render SVG</button>
+                </div>
+            </div>
+
+            <!-- Image Editing Section -->
+            <div class="sidebar-section">
+                <h3 class="section-title">Image Editing</h3>
+
+                <!-- Transform Controls -->
+                <label class="control-label">Transform</label>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
+                    <button class="btn btn-secondary" id="rotate-left-btn">↶ 90°</button>
+                    <button class="btn btn-secondary" id="rotate-right-btn">↷ 90°</button>
+                    <button class="btn btn-secondary" id="flip-h-btn">↔ Flip H</button>
+                    <button class="btn btn-secondary" id="flip-v-btn">↕ Flip V</button>
+                </div>
+
+                <!-- Filters -->
+                <label class="control-label">Filters</label>
+                <div class="control-group">
+                    <label class="control-label" style="font-size: 12px; margin-bottom: 4px;">Brightness</label>
+                    <div class="range-group">
+                        <input type="range" class="range-input" id="brightness" min="0" max="200" value="100">
+                        <span class="range-value" id="brightness-value">100%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" style="font-size: 12px; margin-bottom: 4px;">Contrast</label>
+                    <div class="range-group">
+                        <input type="range" class="range-input" id="contrast" min="0" max="200" value="100">
+                        <span class="range-value" id="contrast-value">100%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" style="font-size: 12px; margin-bottom: 4px;">Saturation</label>
+                    <div class="range-group">
+                        <input type="range" class="range-input" id="saturation" min="0" max="200" value="100">
+                        <span class="range-value" id="saturation-value">100%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" style="font-size: 12px; margin-bottom: 4px;">Blur</label>
+                    <div class="range-group">
+                        <input type="range" class="range-input" id="blur" min="0" max="20" value="0">
+                        <span class="range-value" id="blur-value">0px</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" style="font-size: 12px; margin-bottom: 4px;">Grayscale</label>
+                    <div class="range-group">
+                        <input type="range" class="range-input" id="grayscale" min="0" max="100" value="0">
+                        <span class="range-value" id="grayscale-value">0%</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" style="font-size: 12px; margin-bottom: 4px;">Sepia</label>
+                    <div class="range-group">
+                        <input type="range" class="range-input" id="sepia" min="0" max="100" value="0">
+                        <span class="range-value" id="sepia-value">0%</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Background Gradient Section -->
@@ -1071,9 +1154,30 @@
     </div>
 
     <script>
+        // History Management
+        const history = {
+            past: [],
+            future: [],
+            maxSize: 50
+        };
+
         // Application State
         const state = {
             image: null,
+            svgCode: null,
+            imageTransform: {
+                rotation: 0, // 0, 90, 180, 270
+                flipH: false,
+                flipV: false
+            },
+            imageFilters: {
+                brightness: 100,
+                contrast: 100,
+                saturation: 100,
+                blur: 0,
+                grayscale: 0,
+                sepia: 0
+            },
             gradient: {
                 type: 'linear',
                 angle: 135,
@@ -1099,6 +1203,151 @@
                 height: 675
             }
         };
+
+        // Save state to history
+        function saveStateToHistory() {
+            const stateCopy = JSON.parse(JSON.stringify({
+                imageTransform: state.imageTransform,
+                imageFilters: state.imageFilters,
+                gradient: state.gradient,
+                padding: state.padding,
+                scale: state.scale,
+                borderRadius: state.borderRadius,
+                showBorder: state.showBorder,
+                borderWidth: state.borderWidth,
+                borderColor: state.borderColor,
+                shadow: state.shadow,
+                canvas: state.canvas
+            }));
+
+            history.past.push(stateCopy);
+            if (history.past.length > history.maxSize) {
+                history.past.shift();
+            }
+            history.future = [];
+            updateHistoryButtons();
+        }
+
+        // Undo action
+        function undo() {
+            if (history.past.length === 0) return;
+
+            const currentState = JSON.parse(JSON.stringify({
+                imageTransform: state.imageTransform,
+                imageFilters: state.imageFilters,
+                gradient: state.gradient,
+                padding: state.padding,
+                scale: state.scale,
+                borderRadius: state.borderRadius,
+                showBorder: state.showBorder,
+                borderWidth: state.borderWidth,
+                borderColor: state.borderColor,
+                shadow: state.shadow,
+                canvas: state.canvas
+            }));
+
+            history.future.push(currentState);
+            const previousState = history.past.pop();
+
+            Object.assign(state, previousState);
+            updateUIFromState();
+            render();
+            updateHistoryButtons();
+        }
+
+        // Redo action
+        function redo() {
+            if (history.future.length === 0) return;
+
+            const currentState = JSON.parse(JSON.stringify({
+                imageTransform: state.imageTransform,
+                imageFilters: state.imageFilters,
+                gradient: state.gradient,
+                padding: state.padding,
+                scale: state.scale,
+                borderRadius: state.borderRadius,
+                showBorder: state.showBorder,
+                borderWidth: state.borderWidth,
+                borderColor: state.borderColor,
+                shadow: state.shadow,
+                canvas: state.canvas
+            }));
+
+            history.past.push(currentState);
+            const nextState = history.future.pop();
+
+            Object.assign(state, nextState);
+            updateUIFromState();
+            render();
+            updateHistoryButtons();
+        }
+
+        // Update history buttons state
+        function updateHistoryButtons() {
+            const undoBtn = document.getElementById('undo-btn');
+            const redoBtn = document.getElementById('redo-btn');
+            undoBtn.disabled = history.past.length === 0;
+            redoBtn.disabled = history.future.length === 0;
+        }
+
+        // Update UI from state
+        function updateUIFromState() {
+            // Image filters
+            elements.brightness.value = state.imageFilters.brightness;
+            elements.brightnessValue.textContent = `${state.imageFilters.brightness}%`;
+            elements.contrast.value = state.imageFilters.contrast;
+            elements.contrastValue.textContent = `${state.imageFilters.contrast}%`;
+            elements.saturation.value = state.imageFilters.saturation;
+            elements.saturationValue.textContent = `${state.imageFilters.saturation}%`;
+            elements.blur.value = state.imageFilters.blur;
+            elements.blurValue.textContent = `${state.imageFilters.blur}px`;
+            elements.grayscale.value = state.imageFilters.grayscale;
+            elements.grayscaleValue.textContent = `${state.imageFilters.grayscale}%`;
+            elements.sepia.value = state.imageFilters.sepia;
+            elements.sepiaValue.textContent = `${state.imageFilters.sepia}%`;
+
+            elements.gradientType.value = state.gradient.type;
+            elements.gradientAngle.value = state.gradient.angle;
+            elements.gradientAngleValue.textContent = `${state.gradient.angle}°`;
+            elements.gradientColor1.value = state.gradient.colors[0];
+            elements.gradientColor2.value = state.gradient.colors[1];
+            elements.gradientPos1.value = state.gradient.positions[0];
+            elements.gradientPos2.value = state.gradient.positions[1];
+            elements.gradientPos1Value.textContent = `${state.gradient.positions[0]}%`;
+            elements.gradientPos2Value.textContent = `${state.gradient.positions[1]}%`;
+
+            elements.padding.value = state.padding;
+            elements.paddingValue.textContent = `${state.padding}px`;
+            elements.scale.value = state.scale;
+            elements.scaleValue.textContent = `${state.scale}%`;
+            elements.borderRadius.value = state.borderRadius;
+            elements.borderRadiusValue.textContent = `${state.borderRadius}px`;
+            elements.showBorder.checked = state.showBorder;
+            elements.borderControls.style.display = state.showBorder ? 'block' : 'none';
+            elements.borderWidth.value = state.borderWidth;
+            elements.borderWidthValue.textContent = `${state.borderWidth}px`;
+            elements.borderColor.value = state.borderColor;
+            elements.borderColorText.value = state.borderColor;
+
+            elements.shadowBlur.value = state.shadow.blur;
+            elements.shadowBlurValue.textContent = `${state.shadow.blur}px`;
+            elements.shadowSpread.value = state.shadow.spread;
+            elements.shadowSpreadValue.textContent = `${state.shadow.spread}px`;
+            elements.shadowOpacity.value = state.shadow.opacity;
+            elements.shadowOpacityValue.textContent = `${state.shadow.opacity}%`;
+            elements.shadowX.value = state.shadow.x;
+            elements.shadowXValue.textContent = `${state.shadow.x}px`;
+            elements.shadowY.value = state.shadow.y;
+            elements.shadowYValue.textContent = `${state.shadow.y}px`;
+            elements.shadowColor.value = state.shadow.color;
+            elements.shadowColorText.value = state.shadow.color;
+
+            elements.canvasWidth.value = state.canvas.width;
+            elements.canvasHeight.value = state.canvas.height;
+
+            updateAngleIndicator();
+            updateGradientPreview();
+        }
 
         // Gradient Presets
         const gradientPresets = {
@@ -1167,11 +1416,35 @@
             canvas: document.getElementById('preview-canvas'),
             fileInput: document.getElementById('file-input'),
             uploadBtn: document.getElementById('upload-btn'),
+            svgBtn: document.getElementById('svg-btn'),
+            renderSvgBtn: document.getElementById('render-svg-btn'),
+            svgInputContainer: document.getElementById('svg-input-container'),
+            svgCodeInput: document.getElementById('svg-code-input'),
             exportBtn: document.getElementById('export-btn'),
             resetBtn: document.getElementById('reset-btn'),
+            undoBtn: document.getElementById('undo-btn'),
+            redoBtn: document.getElementById('redo-btn'),
             dropZone: document.getElementById('drop-zone'),
             notification: document.getElementById('notification'),
             notificationText: document.getElementById('notification-text'),
+
+            // Image editing controls
+            rotateLeftBtn: document.getElementById('rotate-left-btn'),
+            rotateRightBtn: document.getElementById('rotate-right-btn'),
+            flipHBtn: document.getElementById('flip-h-btn'),
+            flipVBtn: document.getElementById('flip-v-btn'),
+            brightness: document.getElementById('brightness'),
+            brightnessValue: document.getElementById('brightness-value'),
+            contrast: document.getElementById('contrast'),
+            contrastValue: document.getElementById('contrast-value'),
+            saturation: document.getElementById('saturation'),
+            saturationValue: document.getElementById('saturation-value'),
+            blur: document.getElementById('blur'),
+            blurValue: document.getElementById('blur-value'),
+            grayscale: document.getElementById('grayscale'),
+            grayscaleValue: document.getElementById('grayscale-value'),
+            sepia: document.getElementById('sepia'),
+            sepiaValue: document.getElementById('sepia-value'),
 
             // Gradient controls
             gradientType: document.getElementById('gradient-type'),
@@ -1230,9 +1503,79 @@
             elements.uploadZone.addEventListener('click', () => elements.fileInput.click());
             elements.fileInput.addEventListener('change', handleFileSelect);
 
+            // SVG button
+            elements.svgBtn.addEventListener('click', toggleSvgInput);
+            elements.renderSvgBtn.addEventListener('click', renderSvgCode);
+
             // Export and Reset
             elements.exportBtn.addEventListener('click', exportImage);
             elements.resetBtn.addEventListener('click', resetToDefaults);
+
+            // Undo/Redo
+            elements.undoBtn.addEventListener('click', undo);
+            elements.redoBtn.addEventListener('click', redo);
+
+            // Image editing - Transform
+            elements.rotateLeftBtn.addEventListener('click', () => {
+                saveStateToHistory();
+                state.imageTransform.rotation = (state.imageTransform.rotation - 90 + 360) % 360;
+                render();
+            });
+
+            elements.rotateRightBtn.addEventListener('click', () => {
+                saveStateToHistory();
+                state.imageTransform.rotation = (state.imageTransform.rotation + 90) % 360;
+                render();
+            });
+
+            elements.flipHBtn.addEventListener('click', () => {
+                saveStateToHistory();
+                state.imageTransform.flipH = !state.imageTransform.flipH;
+                render();
+            });
+
+            elements.flipVBtn.addEventListener('click', () => {
+                saveStateToHistory();
+                state.imageTransform.flipV = !state.imageTransform.flipV;
+                render();
+            });
+
+            // Image editing - Filters
+            elements.brightness.addEventListener('input', (e) => {
+                state.imageFilters.brightness = parseInt(e.target.value);
+                elements.brightnessValue.textContent = `${e.target.value}%`;
+                render();
+            });
+
+            elements.contrast.addEventListener('input', (e) => {
+                state.imageFilters.contrast = parseInt(e.target.value);
+                elements.contrastValue.textContent = `${e.target.value}%`;
+                render();
+            });
+
+            elements.saturation.addEventListener('input', (e) => {
+                state.imageFilters.saturation = parseInt(e.target.value);
+                elements.saturationValue.textContent = `${e.target.value}%`;
+                render();
+            });
+
+            elements.blur.addEventListener('input', (e) => {
+                state.imageFilters.blur = parseInt(e.target.value);
+                elements.blurValue.textContent = `${e.target.value}px`;
+                render();
+            });
+
+            elements.grayscale.addEventListener('input', (e) => {
+                state.imageFilters.grayscale = parseInt(e.target.value);
+                elements.grayscaleValue.textContent = `${e.target.value}%`;
+                render();
+            });
+
+            elements.sepia.addEventListener('input', (e) => {
+                state.imageFilters.sepia = parseInt(e.target.value);
+                elements.sepiaValue.textContent = `${e.target.value}%`;
+                render();
+            });
 
             // Drag and Drop
             elements.dropZone.addEventListener('dragover', handleDragOver);
@@ -1471,8 +1814,10 @@
                 const img = new Image();
                 img.onload = () => {
                     state.image = img;
+                    state.svgCode = null;
                     elements.uploadZone.style.display = 'none';
                     elements.canvasWrapper.style.display = 'block';
+                    saveStateToHistory();
                     render();
                     showNotification('Image loaded successfully!', 'success');
                 };
@@ -1481,10 +1826,51 @@
             reader.readAsDataURL(file);
         }
 
+        // SVG Code Handling
+        function toggleSvgInput() {
+            const isVisible = elements.svgInputContainer.style.display !== 'none';
+            elements.svgInputContainer.style.display = isVisible ? 'none' : 'block';
+        }
+
+        function renderSvgCode() {
+            const svgCode = elements.svgCodeInput.value.trim();
+            if (!svgCode) {
+                showNotification('Please enter SVG code', 'error');
+                return;
+            }
+
+            try {
+                // Create a blob from the SVG code
+                const blob = new Blob([svgCode], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+
+                const img = new Image();
+                img.onload = () => {
+                    state.image = img;
+                    state.svgCode = svgCode;
+                    elements.uploadZone.style.display = 'none';
+                    elements.canvasWrapper.style.display = 'block';
+                    elements.svgInputContainer.style.display = 'none';
+                    saveStateToHistory();
+                    render();
+                    showNotification('SVG rendered successfully!', 'success');
+                    URL.revokeObjectURL(url);
+                };
+                img.onerror = () => {
+                    showNotification('Invalid SVG code', 'error');
+                    URL.revokeObjectURL(url);
+                };
+                img.src = url;
+            } catch (error) {
+                showNotification('Error rendering SVG: ' + error.message, 'error');
+            }
+        }
+
         // Gradient Functions
         function applyGradientPreset(presetName) {
             const preset = gradientPresets[presetName];
             if (preset) {
+                saveStateToHistory();
                 state.gradient.colors = [...preset.colors];
                 state.gradient.positions = [...preset.positions];
                 state.gradient.angle = preset.angle;
@@ -1531,6 +1917,7 @@
         function applyShadowPreset(presetName) {
             const preset = shadowPresets[presetName];
             if (preset) {
+                saveStateToHistory();
                 state.shadow = { ...state.shadow, ...preset };
 
                 // Update UI
@@ -1554,6 +1941,7 @@
         function applySizePreset(presetName) {
             const preset = sizePresets[presetName];
             if (preset) {
+                saveStateToHistory();
                 state.canvas.width = preset.width;
                 state.canvas.height = preset.height;
 
@@ -1612,7 +2000,7 @@
                 drawShadow(x, y, imgWidth, imgHeight);
             }
 
-            // Draw image with border radius
+            // Draw image with border radius, transforms, and filters
             ctx.save();
 
             // Create rounded rectangle path
@@ -1630,8 +2018,56 @@
             ctx.closePath();
             ctx.clip();
 
-            // Draw image
-            ctx.drawImage(state.image, x, y, imgWidth, imgHeight);
+            // Apply transforms and filters
+            const centerX = x + imgWidth / 2;
+            const centerY = y + imgHeight / 2;
+
+            ctx.translate(centerX, centerY);
+
+            // Apply rotation
+            if (state.imageTransform.rotation !== 0) {
+                ctx.rotate((state.imageTransform.rotation * Math.PI) / 180);
+            }
+
+            // Apply flip
+            const scaleX = state.imageTransform.flipH ? -1 : 1;
+            const scaleY = state.imageTransform.flipV ? -1 : 1;
+            ctx.scale(scaleX, scaleY);
+
+            // Apply CSS filters
+            const filters = [];
+            if (state.imageFilters.brightness !== 100) {
+                filters.push(`brightness(${state.imageFilters.brightness}%)`);
+            }
+            if (state.imageFilters.contrast !== 100) {
+                filters.push(`contrast(${state.imageFilters.contrast}%)`);
+            }
+            if (state.imageFilters.saturation !== 100) {
+                filters.push(`saturate(${state.imageFilters.saturation}%)`);
+            }
+            if (state.imageFilters.blur > 0) {
+                filters.push(`blur(${state.imageFilters.blur}px)`);
+            }
+            if (state.imageFilters.grayscale > 0) {
+                filters.push(`grayscale(${state.imageFilters.grayscale}%)`);
+            }
+            if (state.imageFilters.sepia > 0) {
+                filters.push(`sepia(${state.imageFilters.sepia}%)`);
+            }
+            if (filters.length > 0) {
+                ctx.filter = filters.join(' ');
+            }
+
+            // Adjust drawing position for rotation
+            let drawWidth = imgWidth;
+            let drawHeight = imgHeight;
+            if (state.imageTransform.rotation === 90 || state.imageTransform.rotation === 270) {
+                drawWidth = imgHeight;
+                drawHeight = imgWidth;
+            }
+
+            // Draw image centered
+            ctx.drawImage(state.image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 
             ctx.restore();
 
@@ -1757,6 +2193,19 @@
         // Reset Function
         function resetToDefaults() {
             // Reset state
+            state.imageTransform = {
+                rotation: 0,
+                flipH: false,
+                flipV: false
+            };
+            state.imageFilters = {
+                brightness: 100,
+                contrast: 100,
+                saturation: 100,
+                blur: 0,
+                grayscale: 0,
+                sepia: 0
+            };
             state.gradient = {
                 type: 'linear',
                 angle: 135,
@@ -1783,6 +2232,19 @@
             };
 
             // Update all UI elements
+            elements.brightness.value = 100;
+            elements.brightnessValue.textContent = '100%';
+            elements.contrast.value = 100;
+            elements.contrastValue.textContent = '100%';
+            elements.saturation.value = 100;
+            elements.saturationValue.textContent = '100%';
+            elements.blur.value = 0;
+            elements.blurValue.textContent = '0px';
+            elements.grayscale.value = 0;
+            elements.grayscaleValue.textContent = '0%';
+            elements.sepia.value = 0;
+            elements.sepiaValue.textContent = '0%';
+
             elements.gradientType.value = 'linear';
             elements.gradientAngle.value = 135;
             elements.gradientAngleValue.textContent = '135°';
